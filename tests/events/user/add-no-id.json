@@ -1,0 +1,6 @@
+{
+    "action": "add",
+    "orgId": "ORG-12345",
+    "email": "user@console.aws",
+    "username": "AWSConsoleTest"
+}

@@ -1,0 +1,7 @@
+{
+    "action": "update",
+    "orgId": "ORG-12345",
+    "userId": "USER-12345",
+    "email": "user2@console.aws",
+    "username": "AWSConsoleTest2"
+}
