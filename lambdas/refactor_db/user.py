@@ -39,26 +39,28 @@ def add(table: any, item: User, verbose: bool = False):
             # TODO: Return an error object instead
             return {}
     else:
-        item['userId'] = generate_id(OBJECT_TYPE)
+        item["userId"] = generate_id(OBJECT_TYPE)
 
     now = int(datetime.now().timestamp())
-    item['createdAt'] = item['updatedAt'] = now
+    item["createdAt"] = item["updatedAt"] = now
 
+    user = {}
     try:
         response = table.put_item(
             Item={
-                'hashKey': item["orgId"],
-                'rangeKey': item["userId"],
-                'itemType': OBJECT_TYPE,
-                'id': item["email"],
-                'orgId': item["orgId"],
-                'userId': item["userId"],
-                'email': item["email"],
-                'username': item["username"],
-                'createdAt': item['createdAt'],
-                'updatedAt': item['updatedAt'],
+                "hashKey": item["orgId"],
+                "rangeKey": item["userId"],
+                "itemType": OBJECT_TYPE,
+                "id": item["email"],
+                "orgId": item["orgId"],
+                "userId": item["userId"],
+                "email": item["email"],
+                "username": item["username"],
+                "createdAt": item["createdAt"],
+                "updatedAt": item["updatedAt"],
             }
         )
+        user = cast(User,item)
     except Exception as e:
         print(f"Error: {e}")
         response = e
@@ -67,9 +69,9 @@ def add(table: any, item: User, verbose: bool = False):
 
     if verbose:
         print(f"response: {response}")
-        print(f"user: {item}")
+        print(f"user: {user}")
 
-    return item
+    return user
 
 def delete(table: any, item: User, verbose: bool = False):
     if verbose:
@@ -89,29 +91,31 @@ def delete(table: any, item: User, verbose: bool = False):
                 'hashKey': item["orgId"],
                 'rangeKey': item["userId"],
             },
-                UpdateExpression=update_expression,
-                ExpressionAttributeValues=expression_values
-            )
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_values,
+            ReturnValues="ALL_NEW",
+        )
     except Exception as e:
         print(f"Error: {e}")
         response = e
         item = {}
 
-    item['deletedAt'] = now
     if verbose:
         print(f"response: {response}")
         print(f"user: {item}")
 
-    return item 
+    # HACK: get rid of Decimal type
+    response['Attributes']['createdAt'] = int(response['Attributes']['createdAt'])
+    response['Attributes']['updatedAt'] = int(response['Attributes']['updatedAt'])
+    response['Attributes']['deletedAt'] = int(response['Attributes']['deletedAt'])
+    return response['Attributes']
 
 def restore(table: any, orgId: str, userId: str, verbose: bool = False):
     if verbose:
-        print(f"function: user delete()")
+        print(f"function: user restore()")
         print(f"table name: {table.table_name}")
         print(f"orgId: {orgId}")
         print(f"userId: {userId}")
-
-    update_expression = "REMOVE deletedAt"
 
     try:
         response = table.update_item(
@@ -119,8 +123,8 @@ def restore(table: any, orgId: str, userId: str, verbose: bool = False):
                 'hashKey': orgId,
                 'rangeKey': userId,
             },
-            UpdateExpression=update_expression,
-            ReturnValues="ALL_NEW"
+            UpdateExpression="REMOVE deletedAt",
+            ReturnValues="ALL_NEW",
         )
     except Exception as e:
         print(f"Error: {e}")
@@ -130,6 +134,9 @@ def restore(table: any, orgId: str, userId: str, verbose: bool = False):
     if verbose:
         print(f"response: {response}")
 
+    # HACK: get rid of Decimal type
+    response['Attributes']['createdAt'] = int(response['Attributes']['createdAt'])
+    response['Attributes']['updatedAt'] = int(response['Attributes']['updatedAt'])
     return response['Attributes']
 
 def destroy(table: any, orgId: str, userId: str, verbose: bool = False, force: bool = False):
@@ -146,20 +153,31 @@ def destroy(table: any, orgId: str, userId: str, verbose: bool = False, force: b
                     'hashKey': orgId,
                     'rangeKey': userId,
                 },
+                ReturnValues="ALL_OLD",
             )
-            return response
+            # HACK: get rid of Decimal type
+            response['Attributes']['createdAt'] = int(response['Attributes']['createdAt'])
+            response['Attributes']['updatedAt'] = int(response['Attributes']['updatedAt'])
+            response['Attributes']['deletedAt'] = int(response['Attributes']['deletedAt'])
+            return response['Attributes']
 
         response = table.delete_item(
             Key={
                 'hashKey': orgId,
                 'rangeKey': userId,
             },
-            ConditionExpression="attribute_exists(deletedAt)"
+            ConditionExpression="attribute_exists(deletedAt)",
+            ReturnValues="ALL_OLD",
         )
-        return response
+
+        # HACK: get rid of Decimal type
+        response['Attributes']['createdAt'] = int(response['Attributes']['createdAt'])
+        response['Attributes']['updatedAt'] = int(response['Attributes']['updatedAt'])
+        response['Attributes']['deletedAt'] = int(response['Attributes']['deletedAt'])
+        return response['Attributes']
+
     except Exception as e:
-        if e['errorType'] == 'TypeError':
-            print(f"Error: user is not marked for deletion: {userId}")
+        return {"error": f"Error: {e}"}
 
 def update(table: any, item: User, verbose: bool = False):
     if verbose:
@@ -175,12 +193,13 @@ def update(table: any, item: User, verbose: bool = False):
         return {}
 
 
+    now = int(datetime.now().timestamp())
     update_expression = "SET id = :i, email = :e, username = :n, updatedAt = :u"
     expression_values = {
         ":i": item["email"],
         ":e": item["email"],
         ":n": item["username"],
-        ":u": int(datetime.now().timestamp()),
+        ":u": int(now),
     }
     response = table.update_item(
         Key={
@@ -191,6 +210,10 @@ def update(table: any, item: User, verbose: bool = False):
             ExpressionAttributeValues=expression_values,
             ReturnValues="ALL_NEW"
         )
+    
+    # HACK: get rid of Decimal type
+    response['Attributes']['createdAt'] = int(response['Attributes']['createdAt'])
+    response['Attributes']['updatedAt'] = now
     return response['Attributes']
 
 def find_all(table: any, orgId: str, verbose: bool = False):
@@ -209,10 +232,15 @@ def find_all(table: any, orgId: str, verbose: bool = False):
 
     users = []
     try:
-        print(f'query_conditions: {query_conditions}')
         response = table.query(**query_conditions)
+        users = []
         if 'Items' in response:
-            users = response['Items']
+            for user in response['Items']:
+                user["createdAt"] = int(user["createdAt"])
+                user["updatedAt"] = int(user["updatedAt"])
+                if 'deletedAt' in user:
+                    user["deletedAt"] = int(user["deletedAt"])
+                users.append(user)
     except Exception as e:
         print(f"Error: {e}")
         response = e
@@ -240,6 +268,11 @@ def find(table: any, orgId: str, userId: str, verbose: bool = False):
         )
         if 'Item' in response:
             user = response['Item']
+            user["createdAt"] = int(user["createdAt"])
+            user["updatedAt"] = int(user["updatedAt"])
+
+            if 'deletedAt' in user:
+                user["deletedAt"] = int(user["deletedAt"])
 
     except Exception as e:
         print(f"Error: {e}")
@@ -272,6 +305,12 @@ def find_by_email(table: any, email: str, verbose: bool = False):
         response = table.query(**query_conditions)
         if 'Items' in response:
             user = response['Items'][0]
+            user["createdAt"] = int(user["createdAt"])
+            user["updatedAt"] = int(user["updatedAt"])
+
+            if 'deletedAt' in user:
+                user["deletedAt"] = int(user["deletedAt"])
+
         else:
             user = {}
     except Exception as e:

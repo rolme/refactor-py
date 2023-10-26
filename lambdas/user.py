@@ -1,11 +1,11 @@
 from typing import cast
 import boto3, os
-from refactor_db import user, id, org
-
-VERBOSE = True
-FORCE = True
+from .refactor_db import user, id, org
 
 def handler(event, context):
+    VERBOSE = True if 'verbose' in event else False
+    FORCE = True
+
     # Initialize the DynamoDB client
     dynamodb = boto3.resource('dynamodb', region_name=os.environ["AWS_REGION"])  # Replace with your region if different
 
@@ -13,7 +13,7 @@ def handler(event, context):
     table = dynamodb.Table(os.environ["TABLE_NAME"])
 
     # TODO: check there is an action
-
+    
     match event['action']:
         case 'add':
             # TODO: Validate email format
@@ -78,6 +78,12 @@ def handler(event, context):
                 raise Exception(f"Error: orgId is not valid: {event['orgId']}")
 
             response = user.destroy(table, event['orgId'], event['userId'], VERBOSE, FORCE)
+
+    if 'error' in response:
+        return {
+            'statusCode': 400,
+            'body': f'{response}'
+        }
 
     return {
         'statusCode': 200,
