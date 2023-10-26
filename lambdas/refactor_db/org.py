@@ -1,8 +1,6 @@
 from typing import TypedDict, NotRequired
 from datetime import datetime
 from .id import generate_id, is_valid_id
-from .user import destroy as destroy_user
-from .user import find_all as find_all_users
 
 OBJECT_TYPE='ORG'
 
@@ -127,10 +125,6 @@ def destroy(table: any, orgId: str, verbose: bool = False, force: bool = False):
 
     try:
         if force:
-            users = find_all_users(table, orgId, verbose)
-            for user in users:
-                destroy_user(table, orgId, user['userId'], verbose, force)
-
             response = table.delete_item(
                 Key={
                     'hashKey': orgId,
