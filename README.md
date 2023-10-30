@@ -9,7 +9,14 @@ Refactor sample app written in python using poet and cdk
 
 ## Installing Poetry
 
-After installing python 3.11.x, make sure to install poetry. NOTE: if you are using `asdf` as a tool manager, DO NOT use `brew` to install.
+If you are using `asdf`:
+
+```sh
+ asdf plugin-add poetry https://github.com/asdf-community/asdf-poetry.git
+ asdf install poetry 1.6.1
+ ```
+
+Otherwise, after installing python 3.11.x, make sure to install poetry.
 
 ```sh
 curl -sSL https://install.python-poetry.org | python -
@@ -40,6 +47,11 @@ You will need to request an IAM access key and secret. Then run the following co
 
 ```sh
 aws configure --profile refactor
+```
+
+## Install CDK
+```sh
+npm install -g aws-cdk 
 ```
 
 ## CDK Python
@@ -103,11 +115,11 @@ Single table design
 
 ### Items
 
-| hashKey   | rangeKey  | itemType | id               |
-| --------- | --------- | -------- | ---------------- |
-| ORG-UUID  | ORG-UUID  | ORG      |                  |
-| ORG-UUID  | USER-UUID | USER     | email            |
-| ORG-UUID  | ROLE-UUID | ROLE     |                  |
+| hashKey   | rangeKey  | itemType  | id               |
+| --------- | --------- | --------- | ---------------- |
+| ORG-UUID  | ORG-UUID  | ORG       |                  |
+| ORG-UUID  | USER-UUID | USER      | email            |
+| ORG-UUID  | ROLE-UUID | ROLE      |                  |
 
 ### Access patterns
 
